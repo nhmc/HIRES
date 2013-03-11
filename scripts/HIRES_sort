@@ -1,0 +1,114 @@
+#!/usr/bin/env python
+try:
+    from astropy.io import fits as pyfits
+except ImportError:
+    import pyfits
+from glob import glob
+import numpy as np
+from subprocess import call
+from shutil import rmtree
+import os
+
+from HIRES.core import get_datetime
+
+ARC_LAMPNAMES = {'ThAr1', 'ThAr2'}
+FLAT_LAMPNAMES = {'quartz', 'quartz1', 'quartz2'}
+STANDARD_PATTERNS = {'feige'} 
+    
+
+#SATURATION_LEVEL = 65000
+filenames = sorted(glob('raw/*.fits') + glob('raw/*.fits.gz'))
+
+dirs = sorted(glob('setup?'))
+for d in dirs:
+    print 'Removing existing directory %s/' % d
+    rmtree(d)
+
+if os.path.exists('bias'):
+    print 'Removing existing directory bias/'
+    rmtree('bias')
+
+settings = {}
+biases = []
+
+for i,n in enumerate(filenames, start=1):
+    print '%i of %i %s' % (i, len(filenames), n)
+    fh = pyfits.open(n)
+    hd = fh[0].header
+    s = get_datetime(n)
+    date = s[2:].replace('-', '').replace(':','').replace('T','-') 
+
+    xd,ech = hd['XDANGL'], hd['ECHANGL']
+
+    keys = ('OBJECT EXPTIME DECKNAME BINNING FIL1NAME '
+            'LAMPNAME RA DEC XDISPERS').split()
+
+    temp = []
+    for k in keys:
+        try:
+            temp.append(str(hd[k]))
+        except KeyError:
+            temp.append('***')
+
+    idstring = ' ' .join(temp)
+    print idstring
+        
+    if hd['LAMPNAME'] in ARC_LAMPNAMES:
+        print '--> ThAr'
+        imtype = 'ThAr'
+    elif hd['LAMPNAME'] in FLAT_LAMPNAMES:
+        print '--> Flat'
+        imtype = 'flat'
+        #d = fh[0].data
+        #if d.max() > SATURATION_LEVEL:
+        #    print n, 'is a saturated flat, skipping'
+        #    continue
+    else:
+        t = hd['EXPTIME']
+        # if it has a very short exposure time and isn't a flat or lamp,
+        # assume it's a bias.
+        if any(p in hd['OBJECT'].lower() for p in STANDARD_PATTERNS):
+            print '--> Standard'
+            imtype = 'std'
+        elif 'bias' in hd['OBJECT'].lower() or t < 10 or \
+                 'dark' in hd['OBJECT'].lower():
+            print '--> Bias'
+            biases.append((n, t, date))
+            continue
+        else:
+            print '--> Object'
+            imtype = '%.1f' % t
+
+    for xdangl, echangl in settings:
+        #print abs(xdangl - xd)
+        #print abs(echangl - ech)
+        # ideally xd tolerance is < 0.0015 (XIDL uses this), but sometimes it drifts...
+        if abs(xdangl - xd) < 0.002 and abs(echangl - ech) < 0.0005:
+            settings[(xdangl, echangl)].append((n, imtype, date, idstring))
+            break
+    else:
+        settings[(xd, ech)] = [(n, imtype, date, idstring)]
+
+with open('HIRES_sort.log', 'wt') as fh:
+    # sort by XD angle
+    for i, key in enumerate(sorted(settings), start=1):
+        s = 'Setup %i: xd %.4f ech %.4f' % (i, key[0], key[1])
+        print s
+        fh.write(s + '\n')
+        call('mkdir setup%i' % i, shell=1)
+        for n, imtype, date, idstring in settings[key]:
+            if imtype == 'flat':
+                imtype = '%s_%s' % (imtype, date)
+            elif imtype == 'ThAr':
+                imtype = '%s_%s' % (imtype, date)
+            elif imtype == 'std':
+                imtype = '%s_%s' % (imtype, date)
+            else:
+                imtype = 'obj_%s_%ss' % (date, imtype)
+            call('ln -s ../%s setup%i/%s.fits' % (n, i, imtype), shell=1)
+            fh.write('  %s:   %s\n' % (imtype, idstring))
+
+call('mkdir bias', shell=1)
+for n,imtype,date in biases:
+    imtype = '%.1f' % imtype + 's'
+    call('ln -s ../%s bias/%s_%s.fits' % (n, date, imtype), shell=1)
