@@ -21,3 +21,4 @@ HIRES_plot_combined
 # fit a continuum to combined.fits and write to final.fits. 3.63 is
 # the QSO redshift.
 HIRES_fitcontinuum 3.63 combined.fits final.fits
+ 

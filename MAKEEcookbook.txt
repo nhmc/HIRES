@@ -1,0 +1,67 @@
+
+Download all the science and calibration files with wget (KOA gives
+you the scripts). Copy them into an empty directory.
+
+This script will untar the science and calibration tarballs, and put all raw files into
+a directory raw/ and ungzip all the files.
+
+  mkdir raw/
+  for n in *cal*.tar; do tar xvf $n; done
+  mv -f HIRES_cal_*/* raw/
+  rm -f HIRES_cal_*.tar
+  rmdir HIRES_cal_*
+  for n in HIRES_sci*.tar; do tar xvf $n; done  
+  mv -f HIRES_sci_*/raw/*fits* raw/
+  rm -f HIRES_sci_*.tar
+  rmdir HIRES_sci_*
+  gunzip raw/*.gz
+  
+  fhdr -f raw/*fits OBJECT XDANGL ECHANGL EXPTIME DECKNAME BINNING FIL1NAME LAMPNAME RA DEC XDISPERS MOSMODE > info_raw
+
+http://www2.keck.hawaii.edu/inst/hires/makeewww/
+
+Before running makee you must select your four input images: (1)
+object, (2) trace star, (3) flat field, and (4) arc lamp. Run from the
+directory above raw/
+
+https://koa.ipac.caltech.edu/cgi-bin/getHIRES/nph-getHIRES?filehand=/koadata4/HIRES/19951227/lev0/HI.19951227.35902.fits
+
+  HIRES_sort
+
+Next make flats (This makes flat for every setup, run it in the
+directory above setup*/)
+
+  HIRES_mkflat
+
+Create MAKEE scripts, find trace exposures and split up newccd files with: 
+
+  HIRES_create_Makee_scripts
+
+Run the scripts
+
+  
+
+Syntax: makee (object file) (star file) (flat file)
+	                     [arc file]  [2nd arc file]
+
+
+makee obj_951227-050119_2700s.fits HI.19951227.17408.fits medflat_1995-12-27.fits  ThAr_951227-054911.fits bias=../bias/951227-020843_4s.fits
+
+If there are problems applying the wavelength scale, try -noskyshift
+
+If makee complains that orders are too close together in EE_FindPeak,
+set the slit length using the command line argument sl= to a value in
+pixels smaller than the separation given in the error message. This is
+mostly a problem for the bluest ccd on the new chip.
+
+
+Now coadd
+
+  mkdir coadd
+  cd coadd/
+  mkdir reduced
+  cd reduced/
+  ln -s ../../setup*/*/Flux*fits .
+  ln -s ../../setup*/*/Err*fits .
+  ln -s ../../setup*/*/Sky*fits .
+  cd ..
