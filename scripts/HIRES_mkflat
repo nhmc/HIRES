@@ -2,14 +2,14 @@
 from glob import glob
 import numpy as np
 import os, sys
-import pyfits
+import pyfits as fits
 
 from HIRES.core import get_datetime
 
 saturation_thresh = 60000
 
 if len(sys.argv[1:]) == 0:
-    setups = sorted(glob('setup*'))
+    setups = sorted(glob('setup*/raw'))
 else:
     setups = sorted(glob(sys.argv[1]))
 
@@ -40,40 +40,32 @@ for setup in setups:
 
 
 for setup in sorted(flats):
-    hdold = hdb = hdg = hdr = None
+    ref = None
     old = []
-    b = []
-    g = []
-    r = []
+    new = []
     for date in sorted(flats[setup]):
         print setup, date
         for i,n in enumerate(flats[setup][date]):
             print ' ', n
             name = os.path.join(setup,n)
-            fh = pyfits.open(name)
+            fh = fits.open(name)
+            if ref is None:
+                ref = name
             if len(fh) == 4:
                 # New detector
-                d = fh[1].data
-                n = num_saturated(d)
+                b = fh[1].data
+                n = num_saturated(b)
                 if n > 0:
                     print '%d b pixels saturated' % n
-                b.append(fix_nan(d))
-                if hdb is None:
-                    hdb = fh[0].header
-                d = fh[2].data
-                n = num_saturated(d)
+                g = fh[2].data
+                n = num_saturated(g)
                 if n > 0:
                     print '%d g pixels saturated' % n
-                g.append(fix_nan(d))
-                if hdg is None:
-                    hdg = fh[0].header
-                d = fh[3].data
-                n = num_saturated(d)
+                r = fh[3].data
+                n = num_saturated(r)
                 if n > 0:
                     print '%d r pixels saturated' % n
-                r.append(fix_nan(d))
-                if hdr is None:
-                    hdr = fh[0].header
+                new.append(map(fix_nan, (b,g,r)))
             else:
                 # old detector
                 d = fh[0].data
@@ -82,32 +74,33 @@ for setup in sorted(flats):
                 if n > 0:
                     print '%d pixels saturated' % n
                 old.append(fix_nan(d))                    
-                if hdold is None:
-                    hdold = fh[0].header
         
         if len(old) > 0:
             print '  Taking median of %i flats' % len(old)
             flat = np.median(old, axis=0)
-            hdold.update('HIERARCH MKFLAT_NCOMB', len(old), comment='Number of images contribution to median')
+            fh = fits.open(ref)
+            fh[0].header.update(
+                'HIERARCH MKFLAT_NCOMB', len(old),
+                comment='Number of images contribution to median')
+            fh[0].data = flat
             name = os.path.join(setup, 'medflat_' + date + '.fits')
-            pyfits.writeto(name, flat, clobber=1, header=hdold)
-        if len(b) > 0:
-            print '  Taking median of %i blue flats' % len(b)
-            flat = np.median(b, axis=0)
-            hdb.update('HIERARCH MKFLAT_NCOMB', len(b), comment='Number of images contribution to median')
-            name = os.path.join(setup, 'medflat_b_' + date + '.fits')
-            pyfits.writeto(name, flat, clobber=1, header=hdb)
-        if len(g) > 0:
-            print '  Taking median of %i green flats' % len(g)
-            flat = np.median(g, axis=0)
-            hdg.update('HIERARCH MKFLAT_NCOMB', len(g), comment='Number of images contribution to median')
-            name = os.path.join(setup, 'medflat_g_' + date + '.fits')
-            pyfits.writeto(name, flat, clobber=1, header=hdg)
-        if len(r) > 0:
-            print '  Taking median of %i red flats' % len(r)
-            flat = np.median(r, axis=0)
-            hdr.update('HIERARCH MKFLAT_NCOMB', len(r), comment='Number of images contribution to median')
-            name = os.path.join(setup, 'medflat_r_' + date + '.fits')
-            pyfits.writeto(name, flat, clobber=1, header=hdr)
-        if len(old) == len(b) == len(g) == len(r) == 0:
+            fh.writeto(name, clobber=1)
+        if len(new) > 0:
+            print '  Taking median of %i b flats' % len(new)
+            bflat = np.median([n[0] for n in new], axis=0)
+            print '  Taking median of %i g flats' % len(new)
+            gflat = np.median([n[1] for n in new], axis=0)
+            print '  Taking median of %i r flats' % len(new)
+            rflat = np.median([n[2] for n in new], axis=0)
+
+            fh = fits.open(ref)
+            fh[0].header.update(
+                'HIERARCH MKFLAT_NCOMB', len(new),
+                comment='Number of images contribution to median')
+            fh[1].data = bflat
+            fh[2].data = gflat
+            fh[3].data = rflat
+            name = os.path.join(setup, 'medflat_' + date + '.fits')
+            fh.writeto(name, clobber=1)
+        if len(old) == len(new) == 0:
             print '  No good flats found!'

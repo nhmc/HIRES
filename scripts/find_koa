@@ -46,27 +46,27 @@ dateobs = hd['DATE-OBS']
 if 'XDISPERS' in hd:
     xdispers = hd['XDISPERS']
 
-    koa = fits.getdata(KOAfilename).view(np.recarray)
+koa = fits.getdata(KOAfilename).view(np.recarray)
      
-    tol = 0.002
-    cond = between(koa.echangl, echangl - tol, echangl + tol)
-    cond &= between(koa.xdangl, xdangl - tol, xdangl + tol)
-    cond &= koa.binning == binning
-    if xdispers is not None:
-        cond &= koa.xdispers == xdispers
-    if findtrace:
-        cond &= koa.elaptime < 600
-        isflat = koa.imagetyp == 'flatlamp'
-        # don't want a flat unless it has the pinhole decker
-        cond &= ~isflat | (isflat & (koa.deckname == 'D5'))
-        # don't want darks or arcs.
-        isdark = (koa.imagetyp == 'dark') | (koa.imagetyp == 'dark_lamp_on')
-        cond &= ~isdark
-        cond &= (koa.imagetyp != 'arclamp')
+tol = 0.002
+cond = between(koa.echangl, echangl - tol, echangl + tol)
+cond &= between(koa.xdangl, xdangl - tol, xdangl + tol)
+cond &= koa.binning == binning
+if xdispers is not None:
+    cond &= koa.xdispers == xdispers
+if findtrace:
+    cond &= koa.elaptime < 600
+    isflat = koa.imagetyp == 'flatlamp'
+    # don't want a flat unless it has the pinhole decker
+    cond &= ~isflat | (isflat & (koa.deckname == 'D5'))
+    # don't want darks or arcs.
+    isdark = (koa.imagetyp == 'dark') | (koa.imagetyp == 'dark_lamp_on')
+    cond &= ~isdark
+    cond &= (koa.imagetyp != 'arclamp')
      
-    if not cond.sum():
-        print 'None found!'
-        sys.exit()
+if not cond.sum():
+    print 'None found!'
+    sys.exit()
 
 koa1 = koa[cond]
 dates = np.array([int(d.replace('-', '')) for d in koa1.date_obs])
@@ -77,7 +77,7 @@ for k in koa1[isort]:
     obj = k['object'].lower()
     if 'flat' in obj or 'dark' in obj:
 	continue
-    print '%-20s %s %s %s' %( k['object'][:20], k['koaid'], k['ut'], 
+    print '%-20s|%s| %s| %s' %( k['object'][:20], k['koaid'], k['ut'], 
 			      k['deckname'])
     if count == 10:
 	break

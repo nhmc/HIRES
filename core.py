@@ -1,9 +1,9 @@
 """ Code for dealing with HIRES spectra.
 """
 import numpy as np
-import pyfits
+import pyfits as fits
 from collections import OrderedDict
-from barak.utilities import concat_recarrays
+from barak.utilities import concat_recarrays, between
 from barak.io import writetable
 from barak.spec import find_bin_edges
 from atpy import Table
@@ -15,11 +15,11 @@ import pylab as pl
 def get_datetime(n):
     """ Read the date keyword from a raw HIRES file (old or new detector)
     """
-    hd = pyfits.getheader(n)
+    hd = fits.getheader(n)
     try:
         s = hd['DATE']
     except KeyError:
-        s = hd['DQA_DATE']
+        s = hd['DATE-OBS'] + 'T' + hd['UT']
     return s
 
 def read_HIRES_wascale(name):
@@ -52,9 +52,9 @@ def read_HIRES_wascale(name):
 
     for echelle order number 5 (also row number 5 in the output spectrum.)
     """
-    hd = pyfits.getheader(name, 0)
+    hd = fits.getheader(name, 0)
     if 'NAXIS2' not in hd:
-        d = pyfits.getdata(name)
+        d = fits.getdata(name)
         Nord = len(d[0])
         Npix = len(d)
     else:
@@ -87,9 +87,9 @@ def join_koa(filenames, outname):
         outname += '.fits'
 
     T = [Table(filename) for filename in filenames]
-    Tout = concat_recarrays(T)
-    
-    writeable(outname, Tout)
+    Tout = concat_recarrays([t.data for t in T])
+
+    writetable(outname, Tout)
 
 
 def rebin(wa, fl, er, rwa, debug=False):
@@ -221,3 +221,59 @@ def rebin(wa, fl, er, rwa, debug=False):
                 raw_input('enter...')
 
     return rfl, rer
+
+def find_trace(filename, tol=0.002, findtrace=True,
+               KOAfilename='/home/nhmc/data/HIRES/koa/KOA_HIRES_20130311.fits',
+               ):
+    """ Given a HIRES raw filename, find a suitable exposure in the
+    archive to use as a trace.
+    """
+    fh = fits.open(filename)
+    hd = fh[0].header
+    echangl = hd['ECHANGL']
+    xdangl = hd['XDANGL']
+    binning = hd['BINNING']
+    dateobs = hd['DATE-OBS']
+    if 'XDISPERS' in hd:
+        xdispers = hd['XDISPERS']
+     
+    koa = fits.getdata(KOAfilename).view(np.recarray)
+
+    cond = between(koa.echangl, echangl - tol, echangl + tol)
+    cond &= between(koa.xdangl, xdangl - tol, xdangl + tol)
+    cond &= koa.binning == binning
+    if xdispers is not None:
+        cond &= koa.xdispers == xdispers
+    if findtrace:
+        cond &= koa.elaptime < 600
+        isflat = koa.imagetyp == 'flatlamp'
+        # don't want a flat unless it has the pinhole decker
+        cond &= ~isflat | (isflat & (koa.deckname == 'D5'))
+        # don't want darks or arcs.
+        isdark = (koa.imagetyp == 'dark') | (koa.imagetyp == 'dark_lamp_on')
+        cond &= ~isdark
+        cond &= (koa.imagetyp != 'arclamp')
+         
+    if not cond.sum():
+        print 'None found!'
+        sys.exit()
+     
+    koa1 = koa[cond]
+    dates = np.array([int(d.replace('-', '')) for d in koa1.date_obs])
+    datediff = np.abs(dates - int(dateobs.replace('-','')))
+    isort = datediff.argsort()
+    count = 1
+    outstr = []
+    retval = []
+    for k in koa1[isort]:
+        obj = k['object'].lower()
+        if 'flat' in obj or 'dark' in obj:
+            continue
+        outstr.append('%-20s|%s| %s| %s' %(
+            k['object'][:20], k['koaid'], k['ut'], k['deckname']))
+        retval.append((k['object'].strip(), k['koaid'].strip()))
+        if count == 10:
+            break
+        count +=1
+
+    return retval

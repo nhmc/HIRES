@@ -1,0 +1,105 @@
+#!/usr/bin/env python
+from __future__ import division
+import numpy as np
+from barak.spec import scale_overlap
+from glob import glob
+
+import pylab as pl
+
+debug = False
+
+# weighting function for echelle orders
+WGT = [0.0, 0.02, 0.12, 0.35, 0.6, 0.9, 1,
+       0.9, 0.6, 0.35, 0.12, 0.02, 0.0]
+
+XWGT = [0,   0.1, 0.25, 0.3, 0.35, 0.4, 0.5,
+        0.6 , 0.65, 0.7, 0.75, 0.9, 1]
+
+def make_weight_array(npts):
+    return np.interp(np.arange(npts)/(npts-1), XWGT, WGT)
+    
+def make_template(wa, indices, flux, err):
+    work = np.array(flux)
+    weight = np.zeros_like(work)
+    for i in xrange(len(flux)):
+        i0, i1 = indices[i]
+        # linear from centre
+        wgt = make_weight_array(i1-i0)
+        weight[i, i0:i1] = wgt 
+        good = ~np.isnan(work[i]) & (err[i] > 0)
+        work[i, ~good] = 0
+        weight[i, ~good] = 0
+
+    fsum = np.sum(work*weight, axis=0)
+    wgt = np.sum(weight, axis=0)
+    return fsum / wgt
+
+def find_start_end_rebinned(er):
+    """ Find the start and end pixels of the rebinned spectra.
+
+    Defined as the lowest and highest indices with er > 0
+
+    Returns
+    -------
+    i0, i1
+    """
+    cond = er > 0
+    ind = cond.nonzero()[0]
+    return ind[0], ind[-1]+1
+    
+if 1:
+    print 'Reading rebinned spectra from rebinned/'
+    sp = [np.load(n).view(np.recarray) for n in sorted(glob('./rebinned/*.npy'))]
+    indices = [find_start_end_rebinned(s.er) for s in sp]
+    wa = sp[0].wa
+
+    i = 0
+    if debug:
+        pl.figure()
+        ax = pl.gca()
+    mults = [1]
+    print 'Finding multipliers for rebinned spectra such that overlapping '
+    print 'spectra roughly match'
+    while i < len(sp) - 1:
+        if debug:
+            ax.cla()
+            ax.set_autoscale_on(0)
+        m0 = mults[i]
+        i0,i1 = indices[i]
+        j0,j1 = indices[i+1]
+        wa0, fl0, er0 = wa[i0:i1], sp[i].fl[i0:i1], sp[i].er[i0:i1]
+        wa1, fl1, er1 = wa[j0:j1], sp[i+1].fl[j0:j1], sp[i+1].er[j0:j1]
+        m1, ind0, ind1 = scale_overlap(wa0, fl0*m0, er0*m0, wa1, fl1, er1)
+        if debug:
+            ax.plot(wa0, fl0*m0, lw=0.5)
+            ax.plot(wa1, fl1*m0, lw=0.5, color='0.7')
+            ax.plot(wa1, fl1*m1, lw=0.5)
+            ax.set_xlim(wa0[ind0] - 10, wa1[ind1] + 10)
+            ymax = max(abs(np.percentile(fl0*m0, 90)), abs(np.percentile(fl1*m1, 90)))
+            ax.set_ylim(-0.3*ymax, 2*ymax)
+            ax.set_title('%i Mult %.4f' % (i, m1))
+            while True:
+                keypress = pl.waitforbuttonpress()
+                if keypress:
+                    break
+        i += 1
+        mults.append(m1)
+               
+if 1:
+    flux = [s.fl*mults[i] for i,s in enumerate(sp)] 
+    err = [s.er*mults[i] for i,s in  enumerate(sp)]
+    print 'Making template'
+    tpl = make_template(wa, indices, flux, err)
+    print 'Saving template to template.npy'
+    np.save('template.npy', np.rec.fromarrays([wa, tpl], names='wa,fl'))
+
+    pl.figure()
+    ax = pl.gca()
+    ax.cla()
+    for i,m in enumerate(mults):
+        i0,i1 = indices[i]
+        wa0, fl0, er0 = wa[i0:i1], sp[i].fl[i0:i1], sp[i].er[i0:i1]
+        ax.plot(wa0, fl0*m, lw=0.5)
+
+    ax.plot(wa, tpl, 'b', lw=2, alpha=0.7)
+    pl.show()

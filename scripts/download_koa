@@ -21,11 +21,22 @@ filename, outname = args
 
 date = filename.split('.')[1]
 print 'Opening KOA page:'
-s = 'https://koa.ipac.caltech.edu/cgi-bin/getHIRES/nph-getHIRES?filehand=/koadata4/HIRES/%s/lev0/%s' % (date, filename)
-print s
+
+fmt = 'https://koa.ipac.caltech.edu/cgi-bin/getHIRES/nph-getHIRES?filehand=/koadata%i/HIRES/%s/lev0/%s'
+s = fmt  % (4, date, filename)
+print s 
 response = urllib2.urlopen(s)
 print 'Reading response'
 d = response.read()
+if 'Unable to find FITS files' in d[:100]:
+    # try new disk number
+    s = fmt  % (2, date, filename)
+    print s 
+    response = urllib2.urlopen(s)
+    print 'Reading response'
+    d = response.read()
+    if 'Unable to find FITS files' in d[:100]:
+        raise RuntimeError('File not found!')
 
 # try:
 #     i = d.index('<!--END RESULTS_SCI COLUMNS-->')
@@ -40,6 +51,7 @@ d = response.read()
 # response = urllib2.urlopen('https://koa.ipac.caltech.edu' + address)
 # print '%s found, downloading...' % filename
 # data = response.read()
+
 
 print 'Writing to %s' % outname
 fh = open(outname, 'wb')
