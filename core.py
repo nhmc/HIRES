@@ -65,14 +65,20 @@ def read_HIRES_wascale(name):
         order = n + 1
         key = 'WV_0_%02i' % order
         if key not in hd:
+            #print 'warning, using CO instead of', key
             key = 'CO_0_%02i' % order
         coeff = map(float, hd[key].split())
+        #print hd[key]
         key = 'WV_4_%02i' % order
         if key not in hd:
+            #print 'warning, using CO instead of ', key
             key = 'CO_4_%02i' % order
+        #print hd[key]
         coeff.extend(map(float, hd[key].split()))
         #print coeff
-        pix = np.arange(Npix) + 1
+
+        # was + 1 instead of + CRVAL1
+        pix = np.arange(Npix) + int(hd['CRVAL1'])
         wa = np.polyval(list(reversed(coeff)), pix)
         wavs.append(wa)
 

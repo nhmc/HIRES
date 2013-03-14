@@ -69,7 +69,7 @@ for setup in setups:
     print s
     fhlog.write(s + '\n')
     fhout = open(setup + '/makee.sh', 'wt')
-    obj = sorted(glob(rawdir + '/obj*fits'))
+    obj = sorted(glob(rawdir + '/obj*.fits'))
     obj += sorted(glob(rawdir + '/std*.fits'))
     arcs = sorted(glob(rawdir + '/ThAr*.fits'))
     flats = sorted(glob(rawdir + '/medflat_*.fits'))
