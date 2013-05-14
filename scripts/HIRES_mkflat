@@ -25,6 +25,7 @@ def fix_nan(d):
     d[c0] = np.nansum(d) / (~c0).sum()
     return d
 
+# find all the flats in each setup and get their date and time.
 flats = {}
 for setup in setups:
     flats[setup] = {}
@@ -38,7 +39,7 @@ for setup in setups:
         else:
             flats[setup][date] = [n1]
 
-
+# create a median of all the flats.
 for setup in sorted(flats):
     ref = None
     old = []
@@ -50,7 +51,11 @@ for setup in sorted(flats):
             name = os.path.join(setup,n)
             fh = fits.open(name)
             if ref is None:
-                ref = name
+                # pick one of the input files to copy the header info
+                # from. Check it has either the CCDSUM or BINNING keywords
+                hdtest = fits.getheader(name, 0)
+                if 'BINNING' in hdtest or 'CCDSUM' in hdtest:
+                    ref = name
             if len(fh) == 4:
                 # New detector
                 b = fh[1].data
@@ -74,7 +79,9 @@ for setup in sorted(flats):
                 if n > 0:
                     print '%d pixels saturated' % n
                 old.append(fix_nan(d))                    
-        
+
+        assert ref is not None
+
         if len(old) > 0:
             print '  Taking median of %i flats' % len(old)
             flat = np.median(old, axis=0)

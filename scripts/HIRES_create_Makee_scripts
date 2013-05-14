@@ -12,7 +12,7 @@ STANDARD_PATTERNS = {'feige', 'bd', 'kp', 'g191'}
 
 def get_mjd_time(filename):
     mjd = float(fits.getval(filename, 'MJD'))
-    # this is actaully a few seconds off the 'DATE' value, but don't
+    # this is actually a few seconds off the 'DATE' value, but don't
     # worry about this for now.
     t = Time(mjd, scale='utc', format='mjd')
     return t
@@ -37,31 +37,39 @@ def split_ccds(name):
         for i in (1, 2, 3):
             n = name.replace('.fits', '_%i.fits' % i)
             hd = fh[i].header
-            hd.update('ECHANGL', hd0['ECHANGL'])
-            hd.update('XDANGL', hd0['XDANGL'])
-            hd.update('LAMPNAME', hd0['LAMPNAME'])
+            for key in hd0:
+                if key not in hd and key != 'EXTEND' and len(key) < 9:
+                    hd.update(key, hd0[key])
             data = fh[i].data
             fits.writeto(n, data, header=hd, clobber=1)
 
     fh.close()
     
 
-setups = sorted(glob('setup*'))
+if len(sys.argv[1:]) == 0:
+    setups = sorted(glob('setup*'))
+else:
+    setups = sorted(glob(sys.argv[1]))
 
 fhlog = open('HIRES_create_Makee_scripts.log', 'wt')
 
-s = """\
-Removing old files and directories with the following command:
 
-  rm -rf setup*/raw/*_?.fits setup*/obj* /setup*/std*
+commands = ['rm -rf %s/raw/*_?.fits setup*/obj* /setup*/std*' % s for
+            s in setups]
 
-Is this ok? (Y/n) """
+s = ("""\
+Removing old files and directories with the following commands:
+""" + '\n'.join(commands) + 
+"""
+
+Is this ok? (Y/n) """)
 
 c = raw_input(s)
 if c and c[0].lower() == 'n':
     sys.exit()
 
-call('rm -rf setup*/raw/*_?.fits setup*/obj* /setup*/std*', shell=1)
+for c in commands:
+    call(c, shell=1)
 
 for setup in setups:
     rawdir = setup + '/raw'

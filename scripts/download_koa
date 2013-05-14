@@ -22,22 +22,25 @@ filename, outname = args
 date = filename.split('.')[1]
 print 'Opening KOA page:'
 
+disknum = 1
+
 fmt = 'https://koa.ipac.caltech.edu/cgi-bin/getHIRES/nph-getHIRES?filehand=/koadata%i/HIRES/%s/lev0/%s'
-s = fmt  % (4, date, filename)
+s = fmt  % (disknum, date, filename)
 print s 
 response = urllib2.urlopen(s)
 print 'Reading response'
 d = response.read()
-if 'Unable to find FITS files' in d[:100]:
+while 'Unable to find FITS files' in d[:100]:
+    disknum += 1
+    if disknum > 4:
+        raise RuntimeError('File not found!')
     # try new disk number
-    s = fmt  % (2, date, filename)
+    s = fmt  % (disknum, date, filename)
     print s 
     response = urllib2.urlopen(s)
     print 'Reading response'
     d = response.read()
-    if 'Unable to find FITS files' in d[:100]:
-        raise RuntimeError('File not found!')
-
+        
 # try:
 #     i = d.index('<!--END RESULTS_SCI COLUMNS-->')
 # except ValueError:

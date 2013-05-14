@@ -1,9 +1,10 @@
 
 Download all the science and calibration files with wget (KOA gives
-you the scripts). Copy them into an empty directory.
+you the scripts). Copy them into an empty directory. Get raw files
+only (no reduced)
 
-This script will untar the science and calibration tarballs, and put all raw files into
-a directory raw/ and ungzip all the files.
+This script will untar the science and calibration tarballs, and put
+all raw files into a directory raw/ and ungzip all the files.
 
   mkdir raw/
   for n in *cal*.tar; do tar xvf $n; done
@@ -11,7 +12,7 @@ a directory raw/ and ungzip all the files.
   rm -f HIRES_cal_*.tar
   rmdir HIRES_cal_*
   for n in HIRES_sci*.tar; do tar xvf $n; done  
-  mv -f HIRES_sci_*/raw/*fits* raw/
+  mv -f HIRES_sci_*/* raw/
   rm -f HIRES_sci_*.tar
   rmdir HIRES_sci_*
   gunzip raw/*.gz
