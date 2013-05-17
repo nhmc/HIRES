@@ -47,7 +47,8 @@ if 1:
         flux.extend(fits.getdata(fluxname))
         error.extend(fits.getdata(errname))
         bgs.extend(fits.getdata(skyname))
-        IDs.extend([fluxname.rsplit('/',1)[0]]*len(wa))
+        prefix = os.path.split(fluxname)[-1].split('.')[0]
+        IDs.extend(['%s-%i' % (prefix, i+1) for i in xrange(len(wa))])
 
     # for i in range(len(wavs)):
     #         plot(wavs[i], flux[i])
@@ -77,10 +78,18 @@ if 1:
     print 'rebinning'
     if not os.path.lexists('./rebinned'):
         os.mkdir('./rebinned')
-        
+    fh = open('Rebinned_IDs', 'wt')
+    wa = np.array(wa, np.float32)
     for i in range(len(wavs)):
+        #print '%i %s' % (i,IDs[i])
         if not i % 20: print i, 'of', len(wavs)
         fl, er = rebin(wavs[i], flux[i], error[i], wa)
         bg = np.interp(wa, wavs[i], bgs[i])
+        er = np.array(er, np.float32)
+        fl = np.array(fl, np.float32)
+        bg = np.array(bg, np.float32)        
         sp = np.rec.fromarrays([wa, fl, er, bg], names='wa,fl,er,bg')
         np.save('rebinned/%03i.npy' % i, sp)
+        fh.write('%i %s\n' % (i,IDs[i]))
+
+    fh.close()
