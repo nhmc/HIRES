@@ -41,6 +41,13 @@ if 1:
     sp = [np.load(n).view(np.recarray) for n in sorted(glob('./rebinned/*.npy'))]
 
     T = np.load('template.npy').view(np.recarray)
+    wa = sp[0]['wa']
+    if T['wa'].shape != wa.shape or not np.allclose(T['wa'], wa):
+        assert T['wa'][0] < wa[0] and T['wa'][-1] > wa[-1]
+        print ('Interpolating template to match rebinned '
+               'spectra wavelength scale')
+        tfl = np.interp(wa, T['wa'], T['fl'])
+        T = np.rec.fromarrays([wa, tfl], names='wa,fl')
 
     print 'scaling to match template'
     log = True
@@ -74,16 +81,16 @@ if 1:
 
         good =  goodsn & goodwa & gooder
         snr = np.median(fl[good] / er[good])
-        print good.sum(), 'good points'
-        print snr, 'SNR'
+        print '%i, %i good points, SNR %.2f' % (i, good.sum(), snr),
 
         if snr < 0.5 or good.sum() == 0:
-            print "Really low S/N, don't do any scaling"
+            print "   Very low S/N, no scaling applied",
             option = 'k'
         elif good.sum() < 200 or snr < 6:
-            print "Don't scale using a spline fit, use median"
+            print "   Low S/N, using median",
             option = 'm'
 
+        print ''
         if option == 'k':
             pass
         elif option == 'm':
@@ -95,15 +102,15 @@ if 1:
             ratio = T.fl / fl
             spline = scale_spec_single(wa[good], ratio[good])
             if spline is None:
-                print 'Too few points to fit spline, using median'
+                print '  Too few points to fit spline, using median'
                 option = 'm'
                 continue
-            m = spline(wa[goodwa])
-            mults[i][goodwa] = m 
+            m = np.array(spline(wa[goodwa]), dtype=mults[i].dtype)
+            mults[i][goodwa] = m
             mults[i][wa < wa0[0]] = m[0]
             mults[i][wa > wa0[-1]] = m[-1]
         else:
-            raise ValueError('unknown option', option)
+            raise ValueError('Unknown option', option)
 
         if log:
             # save plots
@@ -140,4 +147,4 @@ if 1:
         i += 1
         option = 's'
 
-    np.save('multipliers.npy', np.array(mults))
+    np.save('multipliers.npy', np.array(mults, dtype=np.float32))
