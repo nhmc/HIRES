@@ -1,7 +1,11 @@
 """ Code for dealing with HIRES spectra.
 """
 import numpy as np
-import pyfits as fits
+try:
+    from astropy.io import fits
+except ImportError:
+    import pyfits as fits
+
 from collections import OrderedDict
 from barak.utilities import concat_recarrays, between
 from barak.io import writetable

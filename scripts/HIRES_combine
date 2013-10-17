@@ -13,6 +13,17 @@ import pylab as plt
 
 np.seterr(divide='ignore')
 
+
+# bad regions are mostly sky lines
+# s.masked[between(wa, 4879.9, 4881.6)] = True
+# s.masked[between(wa, 5429.7, 5431.4)] = True
+# s.masked[between(wa, 5577.7, 5578.3)] = True
+# s.masked[between(wa, 5599, 5601)] = True 
+# s.masked[between(wa, 5890.4, 5890.9)] = True
+# s.masked[between(wa, 5896.5, 5896.9)] = True
+# s.masked[between(wa, 6798.4, 6798.6)] = True
+# s.masked[between(wa, 6864.5, 6865.2)] = True
+
 MASKS = {
     #67: [(6320.8, 6321.4)],
     # 205:[(4380., 4430.)], 
@@ -134,24 +145,11 @@ if 1:
                                     names='wa,fl,er,ser,clipped,masked,bg'))
 
     wa = sp[0].wa
-    # mask the last 10 pixels of each order
-
-    # bad regions are mostly sky lines
-    # s.masked[between(wa, 4879.9, 4881.6)] = True
-    # s.masked[between(wa, 5429.7, 5431.4)] = True
-    # s.masked[between(wa, 5577.7, 5578.3)] = True
-    # s.masked[between(wa, 5599, 5601)] = True 
-    # s.masked[between(wa, 5890.4, 5890.9)] = True
-    # s.masked[between(wa, 5896.5, 5896.9)] = True
-    # s.masked[between(wa, 6798.4, 6798.6)] = True
-    # s.masked[between(wa, 6864.5, 6865.2)] = True
 
 if 1:
     print 'combining spectra'
     # combine spectra, weighting flux by the smoothed error
 
-    # in: fluxes (m x n), errors (m x n), smoothed errors (m x n), masks (m x n)
-    # out: flux (n), error (n), npts (n), clipped (m x n) 
 
     fl = np.array([s.fl for s in sp])
     er = np.array([s.er for s in sp])
