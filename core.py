@@ -10,7 +10,6 @@ from collections import OrderedDict
 from barak.utilities import concat_recarrays, between
 from barak.io import writetable
 from barak.spec import find_bin_edges
-from atpy import Table
 
 from math import sqrt
 
@@ -96,7 +95,7 @@ def join_koa(filenames, outname):
     if not outname.endswith('.fits'):
         outname += '.fits'
 
-    T = [Table(filename) for filename in filenames]
+    T = [fits.getdata(filename) for filename in filenames]
     Tout = concat_recarrays([t.data for t in T])
 
     writetable(outname, Tout)

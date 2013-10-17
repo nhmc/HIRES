@@ -3,6 +3,11 @@ import pylab as pl
 import matplotlib.transforms as mtransforms
 import numpy as np
 from glob import glob
+try:
+    from astropy.io import fits
+except ImportError:
+    import pyfits as fits
+
 from atpy import Table
 
 if 1:
@@ -10,7 +15,7 @@ if 1:
     # and sky
     sp = [np.load(n).view(np.recarray) for n in sorted(glob('./rebinned/*.npy'))]
 
-    csp = Table('combined.fits')
+    csp = fits.detdata('combined.fits')
     wa, fl, er, npts, bg = csp.wa, csp.fl, csp.er, csp.npts, csp.bg
 
     colours = list('rgkmcy') + ['crimson', 'purple', 'orange', 'gray', 'brown']
