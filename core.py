@@ -12,6 +12,7 @@ from barak.io import writetable
 from barak.spec import find_bin_edges
 
 from math import sqrt
+import os
 
 import pylab as pl
 
@@ -237,12 +238,15 @@ def find_trace(filename, tol=0.002, findtrace=True,
     """ Given a HIRES raw filename, find a suitable exposure in the
     archive to use as a trace.
     """
+    path = os.path.split(os.path.abspath(__file__))[0]
+    KOAfilename = os.path.join(path, 'koa/KOA_HIRES_20130311.fits')
     fh = fits.open(filename)
     hd = fh[0].header
     echangl = hd['ECHANGL']
     xdangl = hd['XDANGL']
     binning = hd['BINNING']
     dateobs = hd['DATE-OBS']
+    xdispers = None
     if 'XDISPERS' in hd:
         xdispers = hd['XDISPERS']
      
@@ -264,8 +268,7 @@ def find_trace(filename, tol=0.002, findtrace=True,
         cond &= (koa.imagetyp != 'arclamp')
          
     if not cond.sum():
-        print 'None found!'
-        sys.exit()
+        raise RuntimeError('None found!')
      
     koa1 = koa[cond]
     dates = np.array([int(d.replace('-', '')) for d in koa1.date_obs])

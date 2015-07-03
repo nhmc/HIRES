@@ -11,6 +11,17 @@ import os
 
 from HIRES.core import get_datetime
 
+from argparse import ArgumentParser
+P = ArgumentParser(description="")
+P.add_argument('--xdtol', type=float, default=0.002,
+               help='Tolerance in XD angle (default 0.002)')
+# ideally xd tolerance is < 0.0015 (XIDL uses this), but sometimes it
+# drifts...
+P.add_argument('--echtol', type=float, default=0.0005,
+               help='Tolerance in echelle angle (default 0.0005)')
+
+args = P.parse_args()
+
 ARC_LAMPNAMES = {'ThAr1', 'ThAr2'}
 FLAT_LAMPNAMES = {'quartz', 'quartz1', 'quartz2'}
 STANDARD_PATTERNS = {'feige'} 
@@ -19,7 +30,7 @@ STANDARD_PATTERNS = {'feige'}
 #SATURATION_LEVEL = 65000
 filenames = sorted(glob('raw/*.fits') + glob('raw/*.fits.gz'))
 
-dirs = sorted(glob('setup?'))
+dirs = sorted(glob('setup*'))
 for d in dirs:
     print 'Removing existing directory %s/' % d
     rmtree(d)
@@ -38,7 +49,7 @@ for i,n in enumerate(filenames, start=1):
     s = get_datetime(n)
     date = s[2:].replace('-', '').replace(':','').replace('T','-') 
 
-    xd,ech = hd['XDANGL'], hd['ECHANGL']
+    xd,ech,bin = hd['XDANGL'], hd['ECHANGL'], hd['BINNING']
 
     keys = ('OBJECT EXPTIME DECKNAME BINNING FIL1NAME '
             'LAMPNAME RA DEC XDISPERS').split()
@@ -57,8 +68,12 @@ for i,n in enumerate(filenames, start=1):
         print '--> ThAr'
         imtype = 'ThAr'
     elif hd['LAMPNAME'] in FLAT_LAMPNAMES:
-        print '--> Flat'
-        imtype = 'flat'
+        if 'dark' in hd['object'].lower():
+            print '--> Dark'
+            imtype = 'dark'
+        else:
+            print '--> Flat'
+            imtype = 'flat'
         #d = fh[0].data
         #if d.max() > SATURATION_LEVEL:
         #    print n, 'is a saturated flat, skipping'
@@ -79,25 +94,34 @@ for i,n in enumerate(filenames, start=1):
             print '--> Object'
             imtype = '%.1f' % t
 
-    for xdangl, echangl in settings:
+    for xdangl, echangl, binning in settings:
+        
         #print abs(xdangl - xd)
         #print abs(echangl - ech)
-        # ideally xd tolerance is < 0.0015 (XIDL uses this), but sometimes it drifts...
-        if abs(xdangl - xd) < 0.002 and abs(echangl - ech) < 0.0005:
-            settings[(xdangl, echangl)].append((n, imtype, date, idstring))
+        if abs(xdangl - xd) < args.xdtol and \
+               abs(echangl - ech) <  args.echtol and binning == bin:
+            settings[(xdangl, echangl, binning)].append(
+                (n, imtype, date, idstring))
             break
+        elif abs(xdangl - xd) < 3*args.xdtol and \
+                 abs(echangl - ech) <  3*args.echtol and binning == bin:
+            print n, (': exposures found within 2 times the acceptable '
+' Ech and XD tolerance. Consider increasing tolerances.')
+
     else:
-        settings[(xd, ech)] = [(n, imtype, date, idstring)]
+        settings[(xd, ech, bin)] = [(n, imtype, date, idstring)]
 
 with open('HIRES_sort.log', 'wt') as fh:
     # sort by XD angle
     for i, key in enumerate(sorted(settings), start=1):
-        s = 'Setup %i: xd %.4f ech %.4f' % (i, key[0], key[1])
+        s = 'Setup %i: xd %.4f ech %.4f bin %s' % (i, key[0], key[1], key[2])
         print s
         fh.write(s + '\n')
-        call('mkdir -p setup%i/raw' % i, shell=1)
+        call('mkdir -p setup%02i/raw' % i, shell=1)
         for n, imtype, date, idstring in settings[key]:
             if imtype == 'flat':
+                imtype = '%s_%s' % (imtype, date)
+            elif imtype == 'dark':
                 imtype = '%s_%s' % (imtype, date)
             elif imtype == 'ThAr':
                 imtype = '%s_%s' % (imtype, date)
@@ -105,7 +129,7 @@ with open('HIRES_sort.log', 'wt') as fh:
                 imtype = '%s_%s' % (imtype, date)
             else:
                 imtype = 'obj_%s_%ss' % (date, imtype)
-            call('ln -s ../../%s setup%i/raw/%s.fits' % (n, i, imtype), shell=1)
+            call('ln -s ../../%s setup%02i/raw/%s.fits' % (n, i, imtype), shell=1)
             fh.write('  %s:   %s\n' % (imtype, idstring))
 
 call('mkdir bias', shell=1)

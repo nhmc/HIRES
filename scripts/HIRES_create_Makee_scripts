@@ -4,7 +4,7 @@ import sys, os
 from glob import glob
 from astropy.time import Time
 from HIRES.core import get_datetime, find_trace
-import pyfits as fits
+import astropy.io.fits as fits
 from subprocess import call
 import numpy as np
 
@@ -90,7 +90,11 @@ for setup in setups:
         print s
         fhlog.write(s + '\n')        
     elif len(obj) > 0:
-        cand = find_trace(obj[0])
+        try:
+            cand = find_trace(obj[0])
+        except RuntimeError:
+            print 'No trace found :('
+            continue
         for c in cand:
             # take the one with a a name like a standard
             if any(s in c[0] for s in STANDARD_PATTERNS):
@@ -102,6 +106,7 @@ for setup in setups:
         s = 'Found best trace %s, downloading %s' % (tname.strip(), trace)
         print s
         fhlog.write(s + '\n')
+        print 'download_koa %s %s/trace.fits' % (trace, rawdir)
         call('download_koa %s %s/trace.fits' % (trace, rawdir), shell=1)
 
     if is_newccd(rawdir + '/trace.fits'):
