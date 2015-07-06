@@ -1,14 +1,9 @@
 """ Code for dealing with HIRES spectra.
 """
 import numpy as np
-try:
-    from astropy.io import fits
-except ImportError:
-    import pyfits as fits
-
-from collections import OrderedDict
-from barak.utilities import concat_recarrays, between
-from barak.io import writetable
+from astropy.io import fits
+from astropy.table import Table
+from barak.utilities import between
 from barak.spec import find_bin_edges
 
 from math import sqrt
@@ -87,19 +82,6 @@ def read_HIRES_wascale(name):
         wavs.append(wa)
 
     return wavs
-
-
-def join_koa(filenames, outname):
-    """ Join two or more IPAC (e.g. sci_*.tbl and cal_*.tbl) files
-    listing KOA entries into a single fits file called outname.
-    """
-    if not outname.endswith('.fits'):
-        outname += '.fits'
-
-    T = [fits.getdata(filename) for filename in filenames]
-    Tout = concat_recarrays([t.data for t in T])
-
-    writetable(outname, Tout)
 
 
 def rebin(wa, fl, er, rwa, debug=False):
@@ -232,14 +214,12 @@ def rebin(wa, fl, er, rwa, debug=False):
 
     return rfl, rer
 
-def find_trace(filename, tol=0.002, findtrace=True,
-               KOAfilename='/home/nhmc/data/HIRES/koa/KOA_HIRES_20130311.fits',
-               ):
+def find_trace(filename, tol=0.002, findtrace=True):
     """ Given a HIRES raw filename, find a suitable exposure in the
     archive to use as a trace.
     """
     path = os.path.split(os.path.abspath(__file__))[0]
-    KOAfilename = os.path.join(path, 'koa/KOA_HIRES_20130311.fits')
+
     fh = fits.open(filename)
     hd = fh[0].header
     echangl = hd['ECHANGL']
@@ -249,29 +229,45 @@ def find_trace(filename, tol=0.002, findtrace=True,
     xdispers = None
     if 'XDISPERS' in hd:
         xdispers = hd['XDISPERS']
-     
-    koa = fits.getdata(KOAfilename).view(np.recarray)
 
-    cond = between(koa.echangl, echangl - tol, echangl + tol)
-    cond &= between(koa.xdangl, xdangl - tol, xdangl + tol)
-    cond &= koa.binning == binning
-    if xdispers is not None:
-        cond &= koa.xdispers == xdispers
+    #import pdb; pdb.set_trace()
+    print('Reading KOA file')
+    KOAfilename = os.path.join(path, 'koa/KOA_HIRES_20150706.fits')
+    koa = Table.read(KOAfilename)
+    
+    print('Finding possible traces')
     if findtrace:
-        cond &= koa.elaptime < 600
-        isflat = koa.imagetyp == 'flatlamp'
+        cond = between(koa['echangl'], echangl - tol, echangl + tol)
+        cond &= between(koa['xdangl'], xdangl - tol, xdangl + tol)
+        cond &= koa['binning'] == binning
+        if xdispers is not None:
+            cond &= koa['xdispers'] == xdispers
+        
+        cond &= koa['elaptime'] < 600
+        isflat = koa['imagetyp'] == 'flatlamp'
         # don't want a flat unless it has the pinhole decker
-        cond &= ~isflat | (isflat & (koa.deckname == 'D5'))
+        cond &= ~isflat | (isflat & (koa['deckname'] == 'D5'))
         # don't want darks or arcs.
-        isdark = (koa.imagetyp == 'dark') | (koa.imagetyp == 'dark_lamp_on')
+        isdark = (koa['imagetyp'] == 'dark') | (koa['imagetyp'] == 'dark_lamp_on')
         cond &= ~isdark
-        cond &= (koa.imagetyp != 'arclamp')
+        cond &= (koa['imagetyp'] != 'arclamp')
+        #import pdb; pdb.set_trace()
          
-    if not cond.sum():
-        raise RuntimeError('None found!')
-     
+        print('{:d} found'.format(cond.sum()))
+        if not cond.sum():
+            c0 = koa['binning'] == bytes(binning)
+            # find closest 'distance' in echangl xdangle space.
+            dist = np.hypot(echangl - koa['echangl'], xdangl - koa['xdangl'])
+            ind = np.argmin(dist[c0])
+            import pdb; pdb.set_trace()
+            s = 'XD {:.3g} ECH {:.3g} Closest match: XD {:.3g} ECH {:.3g}'.format(
+                xdangl, echangl,
+                koa[c0]['xdangl'][ind], koa[c0]['echangl'][ind])
+            raise RuntimeError('None found!\n' + s)
+
+    print('Finding exposures with the nearest date')
     koa1 = koa[cond]
-    dates = np.array([int(d.replace('-', '')) for d in koa1.date_obs])
+    dates = np.array([int(d.replace('-', '')) for d in koa1['date_obs']])
     datediff = np.abs(dates - int(dateobs.replace('-','')))
     isort = datediff.argsort()
     count = 1

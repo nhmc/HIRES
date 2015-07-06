@@ -17,8 +17,8 @@ if len(args) != 2:
 import urllib2
 
 # this is
-# fromhttp://stackoverflow.com/questions/2028517/python-urllib2-progress-hook,
-# it allows progress report when donloading.
+# from http://stackoverflow.com/questions/2028517/python-urllib2-progress-hook,
+# it allows progress report when downloading.
 
 def chunk_report(bytes_so_far, chunk_size, total_size):
    percent = float(bytes_so_far) / total_size
@@ -30,21 +30,23 @@ def chunk_report(bytes_so_far, chunk_size, total_size):
       sys.stdout.write('\n')
 
 def chunk_read(response, chunk_size=8192, report_hook=None):
-   total_size = response.info().getheader('Content-Length').strip()
-   total_size = int(total_size)
-   bytes_so_far = 0
+    total_size = response.info().getheader('Content-Length').strip()
+    total_size = int(total_size)
+    bytes_so_far = 0
 
-   while 1:
-      chunk = response.read(chunk_size)
-      bytes_so_far += len(chunk)
+    data = []
+    while 1:
+        chunk = response.read(chunk_size)
+        bytes_so_far += len(chunk)
+        data.append(chunk)
 
-      if not chunk:
-         break
+        if not chunk:
+            break
 
-      if report_hook:
-         report_hook(bytes_so_far, chunk_size, total_size)
+        if report_hook:
+            report_hook(bytes_so_far, chunk_size, total_size)
 
-   return bytes_so_far
+    return data
 
 filename, outname = args
 
@@ -56,12 +58,9 @@ disknum = 1
 fmt = 'https://koa.ipac.caltech.edu/cgi-bin/getHIRES/nph-getHIRES?filehand=/koadata%i/HIRES/%s/lev0/%s'
 s = fmt  % (disknum, date, filename)
 print s 
-
 response = urllib2.urlopen(s)
-print 'Reading response'
-d = chunk_read(response, report_hook=chunk_report)
 
-while 'Unable to find FITS files' in d[:100]:
+while response.info().getheader('Content-type') != 'image/x-fits':
     disknum += 1
     if disknum > 4:
         raise RuntimeError('File not found!')
@@ -69,25 +68,11 @@ while 'Unable to find FITS files' in d[:100]:
     s = fmt  % (disknum, date, filename)
     print s 
     response = urllib2.urlopen(s)
-    print 'Reading response'
-    d = response.read()
+
+data = chunk_read(response, report_hook=chunk_report)
+
         
-# try:
-#     i = d.index('<!--END RESULTS_SCI COLUMNS-->')
-# except ValueError:
-#     print filename, ' not found'
-#     sys.exit()
-
-# i1 = i + d[i:].index('<a href="') + len('<a href="')
-# i2 = i1 + d[i1:].index('"')
-# address = d[i1:i2]
-# print 'opening link'
-# response = urllib2.urlopen('https://koa.ipac.caltech.edu' + address)
-# print '%s found, downloading...' % filename
-# data = response.read()
-
-
 print 'Writing to %s' % outname
 fh = open(outname, 'wb')
-fh.write(d)
+fh.write(''.join(data))
 fh.close()
