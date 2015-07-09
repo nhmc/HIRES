@@ -1,3 +1,5 @@
+HIRES_sort
+
 # rebin the spectra and make a template. This creates template.npy
 # and one file in rebinned/ for each order in each spectrum.
 HIRES_rebin reduced/Flux*fits
