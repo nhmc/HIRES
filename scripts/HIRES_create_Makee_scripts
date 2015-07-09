@@ -1,14 +1,19 @@
 #!/usr/bin/env python
+#from __future__ import division, print_function, unicode_literals
 
 import sys, os
 from glob import glob
 from astropy.time import Time
-from HIRES.core import get_datetime, find_trace
+from HIRES.core import find_trace
 import astropy.io.fits as fits
 from subprocess import call
 import numpy as np
 
-STANDARD_PATTERNS = {'feige', 'bd', 'kp', 'g191'}
+if sys.version[0] > '2':
+    raw_input = input
+
+
+STANDARD_PATTERNS = {'feige', 'fiege', 'bd', 'kp', 'g191'}
 
 def get_mjd_time(filename):
     mjd = float(fits.getval(filename, 'MJD'))
@@ -38,8 +43,13 @@ def split_ccds(name):
             n = name.replace('.fits', '_%i.fits' % i)
             hd = fh[i].header
             for key in hd0:
-                if key not in hd and key != 'EXTEND' and len(key) < 9:
-                    hd.update(key, hd0[key])
+                if key not in hd and key != 'EXTEND' and len(key) < 9 and \
+                       key not in ('EXTEND', 'COMMENT', ''):
+                    try:
+                        #print(repr(key))
+                        hd.update(key, hd0[key])
+                    except:
+                        import pdb; pdb.set_trace()
             data = fh[i].data
             fits.writeto(n, data, header=hd, clobber=1)
 
@@ -74,7 +84,7 @@ for c in commands:
 for setup in setups:
     rawdir = setup + '/raw'
     s = '#### ' + setup + ' ####'
-    print s
+    print(s)
     fhlog.write(s + '\n')
     fhout = open(setup + '/makee.sh', 'wt')
     obj = sorted(glob(rawdir + '/obj*.fits'))
@@ -82,21 +92,21 @@ for setup in setups:
     arcs = sorted(glob(rawdir + '/ThAr*.fits'))
     flats = sorted(glob(rawdir + '/medflat_*.fits'))
     if 0 in (len(flats), len(obj), len(arcs)):
-        print 'Not enough files for reduction, skipping'
+        print('Not enough files for reduction, skipping')
         continue
 
     if os.path.exists(rawdir + '/trace.fits'):
         s = 'trace.fits exists, not overwriting'
-        print s
+        print(s)
         fhlog.write(s + '\n')        
     elif len(obj) > 0:
         try:
             cand = find_trace(obj[0])
         except RuntimeError:
-            print 'No trace found :('
+            print('No trace found :(')
             continue
         for c in cand:
-            # take the one with a a name like a standard
+            # take the one with a name like a standard
             if any(s in c[0] for s in STANDARD_PATTERNS):
                 tname, trace = c
                 break
@@ -104,9 +114,9 @@ for setup in setups:
             # just take the first one
             tname, trace = cand[0]
         s = 'Found best trace %s, downloading %s' % (tname.strip(), trace)
-        print s
+        print(s)
         fhlog.write(s + '\n')
-        print 'download_koa %s %s/trace.fits' % (trace, rawdir)
+        print('download_koa %s %s/trace.fits' % (trace, rawdir))
         call('download_koa %s %s/trace.fits' % (trace, rawdir), shell=1)
 
     if is_newccd(rawdir + '/trace.fits'):
@@ -117,7 +127,7 @@ for setup in setups:
     for n in obj:
         objdir = setup + '/' + os.path.split(n)[1].replace('.fits', '')
         s = 'Creating directory %s/' % objdir
-        print s
+        print(s)
         fhlog.write(s + '\n')
         call('mkdir ' + objdir, shell=1)
         objdir1 = os.path.split(objdir)[1]
@@ -147,14 +157,14 @@ for setup in setups:
                 arc1 = arc.replace('.fits', '_%i.fits' % i)
                 s = 'makee %s ../raw/trace_%i.fits %s %s ccd=%i\n' % (
                     obj1, i, flat1, arc1, i)
-                print s,
+                print(s)
                 fhlog.write(s)
                 fhout.write(s)
         else:
             # note no skyshift for older ccds
             s = 'makee %s ../raw/trace.fits %s %s -noskyshift\n' % (
                 obj, flat, arc)
-            print s,
+            print(s)
             fhlog.write(s)
             fhout.write(s)
         fhout.write('cd ..\n\n')

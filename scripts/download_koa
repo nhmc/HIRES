@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import division, print_function#, unicode_literals
 import sys
 
 usage = """\
@@ -11,10 +12,14 @@ e.g.  download_koa HI.20060703.20567.fits trace.fits
 args = sys.argv[1:]
 
 if len(args) != 2:
-    print usage
+    print(usage)
     sys.exit()
 
-import urllib2
+
+if sys.version[0] > '2':
+    from urllib.request import urlopen
+else:
+    from urllib2 import urlopen
 
 # this is
 # from http://stackoverflow.com/questions/2028517/python-urllib2-progress-hook,
@@ -51,14 +56,14 @@ def chunk_read(response, chunk_size=8192, report_hook=None):
 filename, outname = args
 
 date = filename.split('.')[1]
-print 'Opening KOA page:'
+print('Opening KOA page:')
 
 disknum = 1
 
 fmt = 'https://koa.ipac.caltech.edu/cgi-bin/getHIRES/nph-getHIRES?filehand=/koadata%i/HIRES/%s/lev0/%s'
 s = fmt  % (disknum, date, filename)
-print s 
-response = urllib2.urlopen(s)
+print(s)
+response = urlopen(s)
 
 while response.info().getheader('Content-type') != 'image/x-fits':
     disknum += 1
@@ -66,13 +71,13 @@ while response.info().getheader('Content-type') != 'image/x-fits':
         raise RuntimeError('File not found!')
     # try new disk number
     s = fmt  % (disknum, date, filename)
-    print s 
-    response = urllib2.urlopen(s)
+    print(s)
+    response = urlopen(s)
 
 data = chunk_read(response, report_hook=chunk_report)
 
         
-print 'Writing to %s' % outname
+print('Writing to %s' % outname)
 fh = open(outname, 'wb')
 fh.write(''.join(data))
 fh.close()
