@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-""" Rebin individual HIRES exposures to a common wavelength scale.
+""" Rebin individual HIRES exposures to a common wavelength scale, and
+make a rough combination of all the spectra to act as a template for
+use scaling the spectra.
 """
 
 import numpy as np
@@ -12,30 +14,11 @@ from pylab import plot,show
 import sys, os
 
 from barak.utilities import between
-from barak.constants import c_kms
 from HIRES.core import read_HIRES_wascale, rebin
 
 # read all the (extracted) spectra
 
-# read a file with velocity shifts, if present. A positive shift adds
-# a velocity offset to the wavelength scale.
-#
-# Example format ('#' mark comment lines)
-#
-# # filename         velocity shift          
-# Flux_000_01.fits      3
-
-vshifts = {}
-if os.path.exists('vshifts'):
-    print 'Reading velocity shifts from vshifts'
-    fh = open('vshifts', 'rt')
-    for row in fh:
-        if row.strip().startswith('#'):
-            continue
-        spec, shift = row.split()
-        print spec, shift
-        vshifts[spec] = float(shift)
-    fh.close()
+# read a fiel wavelength shifts, if 
 
 if 1:
     fluxnames = sorted(sys.argv[1:])
@@ -63,13 +46,6 @@ if 1:
         print 'reading', fluxname, '+ Err + Sky' 
         #import pdb; pdb.set_trace()
         wa = read_HIRES_wascale(fluxname)
-        if fluxname in vshifts:
-            print 'Applying %.3f km/s shift to every order of %s' % (
-                vshifts[fluxname], fluxname)
-            # apply the velocity shift to the wavelength scale of each order.
-            for i in xrange(len(wa)):
-                wa[i] = wa[i] * (1 + vshifts[fluxname]/c_kms)
-
         wavs.extend(wa)
         flux.extend(fits.getdata(fluxname))
         error.extend(fits.getdata(errname))

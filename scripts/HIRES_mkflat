@@ -2,7 +2,7 @@
 from glob import glob
 import numpy as np
 import os, sys
-import pyfits as fits
+import astropy.io.fits as fits
 
 from HIRES.core import get_datetime
 
