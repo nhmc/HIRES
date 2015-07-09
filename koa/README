@@ -1,0 +1,3 @@
+To update this list, go to the keck observatory archive, search for
+every HIRES exposure with exposure time > 1s, and save the resulting
+ascii table. Then convert to a gits file with the attached script.
