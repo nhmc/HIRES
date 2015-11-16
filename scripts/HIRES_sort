@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+
+from __future__ import print_function, absolute_import, division, unicode_literals
+
 try:
     from astropy.io import fits as pyfits
 except ImportError:
@@ -32,18 +35,18 @@ filenames = sorted(glob('raw/*.fits') + glob('raw/*.fits.gz'))
 
 dirs = sorted(glob('setup*'))
 for d in dirs:
-    print 'Removing existing directory %s/' % d
+    print('Removing existing directory %s/' % d)
     rmtree(d)
 
 if os.path.exists('bias'):
-    print 'Removing existing directory bias/'
+    print('Removing existing directory bias/')
     rmtree('bias')
 
 settings = {}
 biases = []
 
 for i,n in enumerate(filenames, start=1):
-    print '%i of %i %s' % (i, len(filenames), n)
+    print('%i of %i %s' % (i, len(filenames), n))
     fh = pyfits.open(n)
     hd = fh[0].header
     s = get_datetime(n)
@@ -51,7 +54,7 @@ for i,n in enumerate(filenames, start=1):
 
     xd,ech,bin = hd['XDANGL'], hd['ECHANGL'], hd['BINNING']
 
-    keys = ('OBJECT EXPTIME DECKNAME BINNING FIL1NAME '
+    keys = ('OBJECT EXPTIME DECKNAME BINNING LFILNAME '
             'LAMPNAME RA DEC XDISPERS').split()
 
     temp = []
@@ -62,36 +65,36 @@ for i,n in enumerate(filenames, start=1):
             temp.append('***')
 
     idstring = ' ' .join(temp)
-    print idstring
+    print(idstring)
         
     if hd['LAMPNAME'] in ARC_LAMPNAMES:
-        print '--> ThAr'
+        print('--> ThAr')
         imtype = 'ThAr'
     elif hd['LAMPNAME'] in FLAT_LAMPNAMES:
         if 'dark' in hd['object'].lower():
-            print '--> Dark'
+            print('--> Dark')
             imtype = 'dark'
         else:
-            print '--> Flat'
+            print('--> Flat')
             imtype = 'flat'
         #d = fh[0].data
         #if d.max() > SATURATION_LEVEL:
-        #    print n, 'is a saturated flat, skipping'
+        #    print(n, 'is a saturated flat, skipping')
         #    continue
     else:
         t = hd['EXPTIME']
         # if it has a very short exposure time and isn't a flat or lamp,
         # assume it's a bias.
         if any(p in hd['OBJECT'].lower() for p in STANDARD_PATTERNS):
-            print '--> Standard'
+            print('--> Standard')
             imtype = 'std'
         elif 'bias' in hd['OBJECT'].lower() or t < 10 or \
                  'dark' in hd['OBJECT'].lower():
-            print '--> Bias'
+            print('--> Bias')
             biases.append((n, t, date))
             continue
         else:
-            print '--> Object'
+            print('--> Object')
             imtype = '%.1f' % t
 
     for xdangl, echangl, binning in settings:
@@ -105,8 +108,8 @@ for i,n in enumerate(filenames, start=1):
             break
         elif abs(xdangl - xd) < 3*args.xdtol and \
                  abs(echangl - ech) <  3*args.echtol and binning == bin:
-            print n, (': exposures found within 2 times the acceptable '
-' Ech and XD tolerance. Consider increasing tolerances.')
+            print(n, (': exposures found within 2 times the acceptable '
+                      ' Ech and XD tolerance. Consider increasing tolerances.'))
 
     else:
         settings[(xd, ech, bin)] = [(n, imtype, date, idstring)]
@@ -115,7 +118,7 @@ with open('HIRES_sort.log', 'wt') as fh:
     # sort by XD angle
     for i, key in enumerate(sorted(settings), start=1):
         s = 'Setup %i: xd %.4f ech %.4f bin %s' % (i, key[0], key[1], key[2])
-        print s
+        print(s)
         fh.write(s + '\n')
         call('mkdir -p setup%02i/raw' % i, shell=1)
         for n, imtype, date, idstring in settings[key]:
