@@ -1,5 +1,12 @@
 #!/usr/bin/env python
-from __future__ import division
+from __future__ import print_function, absolute_import, division, unicode_literals
+
+
+try:
+    xrange
+except NameError:
+    xrange = range
+
 import numpy as np
 from barak.spec import scale_overlap
 from barak.io import readtxt
@@ -59,11 +66,11 @@ if 1:
     for i,name in enumerate(sorted(glob('./rebinned/*.npy'))):
         if exclude_pattern is not None and \
                fnmatch(ID_from_num[i], exclude_pattern):
-            print 'Skipping', name, ID_from_num[i], '(', exclude_pattern, ')'
+            print('Skipping', name, ID_from_num[i], '(', exclude_pattern, ')')
             continue
         goodnames.append(name)
 
-    print 'Reading %i rebinned spectra from rebinned/' % len(goodnames)
+    print('Reading %i rebinned spectra from rebinned/' % len(goodnames))
     sp = [np.load(n).view(np.recarray) for n in goodnames]
     indices = [find_start_end_rebinned(s.er) for s in sp]
     wa = sp[0].wa
@@ -74,8 +81,8 @@ if 1:
     if debug:
         pl.figure()
         ax = pl.gca()
-    print 'Finding multipliers for rebinned spectra such that overlapping '
-    print 'spectra roughly match'
+    print('Finding multipliers for rebinned spectra such that overlapping ')
+    print('spectra roughly match')
 
     while i < len(sp) - 1:
         if debug:
@@ -113,7 +120,7 @@ if 1:
         wa1, fl1, er1 = wa[j0:j1], sp[i+1].fl[j0:j1], sp[i+1].er[j0:j1]
         m1, ind0, ind1 = scale_overlap(wa0, fl0*m0, er0*m0, wa1, fl1, er1)
         if wa0[-1] < wa1[0]:
-            print 'No overlap, so no scaling applied'
+            print('No overlap, so no scaling applied')
             m1 = m0
         if debug:
             ax.plot(wa0, fl0*m0, lw=0.5)
@@ -135,9 +142,9 @@ if 1:
 if 1:
     flux = [s.fl*mults[i] for i,s in enumerate(sp)] 
     err = [s.er*mults[i] for i,s in  enumerate(sp)]
-    print 'Making template'
+    print('Making template')
     tpl = make_template(wa, indices, flux, err)
-    print 'Saving template to template.npy'
+    print('Saving template to template.npy')
     np.save('template.npy', np.rec.fromarrays([wa, tpl], names='wa,fl'))
 
     pl.figure()

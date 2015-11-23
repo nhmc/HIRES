@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function, absolute_import, division, unicode_literals
 import numpy as np
 
 from math import sqrt
@@ -6,8 +7,8 @@ import os
 from glob import glob
 
 from barak.convolve import convolve_psf
-from barak.utilities import between, stats
-from barak.io import writetable
+from barak.utilities import between
+from astropy.table import Table
 
 import pylab as plt
 
@@ -78,7 +79,7 @@ def combine(fl, er, ser, mask, NSIG=3):
     for i in range(Npix):
     #for i in range(26526, 26526+1000):
             
-        if not i % 5000: print i
+        if not i % 5000: print(i)
 
         ftot = 0
         etot = 0
@@ -94,7 +95,7 @@ def combine(fl, er, ser, mask, NSIG=3):
                 if not er[j,i] > 0:
                     continue
                 if mask[j,i]:
-                    #print 'Masked spectrum %i pixel %i' % (j, i)
+                    #print('Masked spectrum %i pixel %i' % (j, i))
                     continue
                 
                 resid = (fl[j,i] - med)/er[j,i]
@@ -126,7 +127,7 @@ def combine(fl, er, ser, mask, NSIG=3):
 if 1:
     mults = np.load('multipliers.npy')
     sp = []
-    print 'Applying scaling and masking regions'
+    print('Applying scaling and masking regions')
     for i,name in enumerate(sorted(glob('./rebinned/*.npy'))):
         s = np.load(name).view(np.recarray)
         # smoothed error
@@ -134,7 +135,7 @@ if 1:
         masked = np.zeros(len(s.fl), bool)
         masked[-5:] = True
         if i in MASKS:
-            print 'Masking spectrum %i' % i
+            print('Masking spectrum %i' % i)
             for w0,w1 in MASKS[i]:
                masked = masked | between(s.wa, w0, w1)
         fl = s.fl * mults[i]
@@ -147,7 +148,7 @@ if 1:
     wa = sp[0].wa
 
 if 1:
-    print 'combining spectra'
+    print('combining spectra')
     # combine spectra, weighting flux by the smoothed error
 
 
@@ -165,5 +166,5 @@ if 1:
     # now combine the sky
     bg = make_sky([s.bg for s in sp], [s.er for s in sp])
 
-    rec = np.rec.fromarrays([wa,fl,er,npts,bg],names='wa,fl,er,npts,bg')
-    writetable('combined.fits', rec, overwrite=True)
+    T = Table([wa,fl,er,npts,bg], names=['wa','fl','er','npts','bg'])
+    T.write('combined.fits', overwrite=True)
