@@ -1,5 +1,7 @@
 """ Code for dealing with HIRES spectra.
 """
+from __future__ import print_function, absolute_import, division, unicode_literals
+
 import numpy as np
 from astropy.io import fits
 from astropy.table import Table
@@ -66,7 +68,7 @@ def read_HIRES_wascale(name):
         if key not in hd:
             #print 'warning, using CO instead of', key
             key = 'CO_0_%02i' % order
-        coeff = map(float, hd[key].split())
+        coeff = list(map(float, hd[key].split()))
         #print hd[key]
         key = 'WV_4_%02i' % order
         if key not in hd:

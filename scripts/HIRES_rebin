@@ -1,6 +1,13 @@
 #!/usr/bin/env python
 """ Rebin individual HIRES exposures to a common wavelength scale.
 """
+from __future__ import print_function, absolute_import, division, unicode_literals
+
+
+try:
+    xrange
+except NameError:
+    xrange = range
 
 import numpy as np
 try:
@@ -27,13 +34,13 @@ from HIRES.core import read_HIRES_wascale, rebin
 
 vshifts = {}
 if os.path.exists('vshifts'):
-    print 'Reading velocity shifts from vshifts'
+    print('Reading velocity shifts from vshifts')
     fh = open('vshifts', 'rt')
     for row in fh:
         if row.strip().startswith('#'):
             continue
         spec, shift = row.split()
-        print spec, shift
+        print(spec, shift)
         vshifts[spec] = float(shift)
     fh.close()
 
@@ -60,12 +67,12 @@ if 1:
         fluxname = fluxnames[i]
         errname = errnames[i]
         skyname = skynames[i]
-        print 'reading', fluxname, '+ Err + Sky' 
+        print('reading', fluxname, '+ Err + Sky')
         #import pdb; pdb.set_trace()
         wa = read_HIRES_wascale(fluxname)
         if fluxname in vshifts:
-            print 'Applying %.3f km/s shift to every order of %s' % (
-                vshifts[fluxname], fluxname)
+            print('Applying %.3f km/s shift to every order of %s' % (
+                vshifts[fluxname], fluxname))
             # apply the velocity shift to the wavelength scale of each order.
             for i in xrange(len(wa)):
                 wa[i] = wa[i] * (1 + vshifts[fluxname]/c_kms)
@@ -92,24 +99,24 @@ if 1:
     bgs = [bgs[i] for i in isort]
     IDs = [IDs[i] for i in isort]
     wmin = min([wa[0] for wa in wavs])
-    wmax = max([wa[-1] for w in wavs])
+    wmax = max([wa[-1] for wa in wavs])
 
     # Create a wavelength scale with constant
     # that covers all the individual exposures
     delta = 2.2 / 3.e5
-    print 'using %.2f km/s pixels' % (delta * 3e5)
+    print('using %.2f km/s pixels' % (delta * 3e5))
     dlog10wa = np.log10(1 + delta)
     log10wa = np.arange(np.log10(wmin), np.log10(wmax), dlog10wa)
     wa = 10**log10wa
 
-    print 'rebinning'
+    print('rebinning')
     if not os.path.lexists('./rebinned'):
         os.mkdir('./rebinned')
     fh = open('Rebinned_IDs', 'wt')
     wa = np.array(wa, np.float32)
     for i in range(len(wavs)):
         #print '%i %s' % (i,IDs[i])
-        if not i % 20: print i, 'of', len(wavs)
+        if not i % 20: print(i, 'of', len(wavs))
         fl, er = rebin(wavs[i], flux[i], error[i], wa)
         bg = np.interp(wa, wavs[i], bgs[i])
         er = np.array(er, np.float32)
