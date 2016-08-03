@@ -50,7 +50,8 @@ def split_ccds(name):
                         hd.update(key, hd0[key])
                     except:
                         import pdb; pdb.set_trace()
-            data = fh[i].data
+            #import pdb; pdb.set_trace()
+            data = np.array(fh[i].data, dtype=np.float32)
             fits.writeto(n, data, header=hd, clobber=1)
 
     fh.close()

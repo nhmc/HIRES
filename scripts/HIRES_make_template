@@ -127,8 +127,14 @@ if 1:
             ax.plot(wa1, fl1*m0, lw=0.5, color='0.7')
             ax.plot(wa1, fl1*m1, lw=0.5)
             ax.set_xlim(wa0[ind0] - 10, wa1[ind1] + 10)
-            ymax = max(abs(np.percentile(fl0*m0, 90)),
-                       abs(np.percentile(fl1*m1, 90)))
+            ymax = max(abs(np.percentile(fl0[~np.isnan(fl0)]*m0, 90)),
+                       abs(np.percentile(fl1[~np.isnan(fl1)]*m1, 90)))
+            ermax = 2 * max(np.median(er0[~np.isnan(er0)]),
+                            np.median(er1[~np.isnan(er1)]))
+            if ymax < ermax:
+                ymax = ermax
+            print(i, ermax, ymax)
+            #import pdb; pdb.set_trace()
             ax.set_ylim(-0.3*ymax, 2*ymax)
             ax.set_title('%i Mult %.4f' % (i, m1))
             while True:

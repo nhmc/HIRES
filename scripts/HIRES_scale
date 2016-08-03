@@ -65,8 +65,10 @@ if 1:
     mults = [np.ones_like(s.fl) for s in sp]
     i = 0
     # only use pixels with at least this (smoothed) SNR for measuring scaling.
-    minSN = 3
+    minSN = 2
     option = 's'
+
+    tgood =  ~np.isnan(T.fl)
     while i < len(sp):
         #if not i % 100: print i
         wa = sp[i].wa
@@ -98,12 +100,12 @@ if 1:
             pass
         elif option == 'm':
             ratio = T.fl / fl
-            med = np.median(ratio[good])
+            med = np.median(ratio[good & tgood])
             mults[i][:] = med
         elif option == 's':
             # fit a spline to flux ratios
             ratio = T.fl / fl
-            spline = scale_spec_single(wa[good], ratio[good])
+            spline = scale_spec_single(wa[good & tgood], ratio[good & tgood])
             if spline is None:
                 print('  Too few points to fit spline, using median')
                 option = 'm'
@@ -115,6 +117,9 @@ if 1:
         else:
             raise ValueError('Unknown option', option)
 
+        if i == 10:
+            import pdb; pdb.set_trace()
+
         if log:
             # save plots
             ax1.cla()
@@ -122,7 +127,9 @@ if 1:
             ax1.plot(wa, convolve_psf(T.fl, 5), 'b')
             ax1.plot(wa, convolve_psf(fl, 5), 'g--', alpha=0.5)
             ax1.plot(wa, convolve_psf(fl*mults[i], 5), 'r', alpha=0.8)
-            ymax = np.percentile(T.fl[between(wa,wa0[0],wa0[-1])], 90)
+            c0 = between(wa,wa0[0],wa0[-1])
+            c1 = ~np.isnan(T.fl)
+            ymax = abs(np.percentile(T.fl[c0&c1], 90))
             ax1.set_ylim(-0.5*ymax, 2*ymax)
             ax1.set_xlim(wa0[0], wa0[-1])
             ax1.axhline(0, color='k', ls='--')

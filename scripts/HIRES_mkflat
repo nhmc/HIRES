@@ -91,7 +91,8 @@ for setup in sorted(flats):
             fh[0].header.update(
                 'HIERARCH MKFLAT_NCOMB', len(old),
                 comment='Number of images contribution to median')
-            fh[0].data = flat
+            fh[0].data = np.array(flat, dtype=np.float32)
+
             name = os.path.join(setup, 'medflat_' + date + '.fits')
             fh.writeto(name, clobber=1)
         if len(new) > 0:
@@ -109,9 +110,9 @@ for setup in sorted(flats):
             fh[0].header.update(
                 'HIERARCH MKFLAT_NCOMB', len(new),
                 comment='Number of images contribution to median')
-            fh[1].data = bflat
-            fh[2].data = gflat
-            fh[3].data = rflat
+            fh[1].data = np.array(bflat, dtype=np.float32)
+            fh[2].data = np.array(gflat, dtype=np.float32)
+            fh[3].data = np.array(rflat, dtype=np.float32)
             name = os.path.join(setup, 'medflat_' + date + '.fits')
             fh.writeto(name, clobber=1)
         if len(old) == len(new) == 0:
